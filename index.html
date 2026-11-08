@@ -1,0 +1,205 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>
+      探途地图Web版 - 全球中文旅游地图/电脑版桌面版 - maps.tantu.com
+    </title>
+    <meta
+      name="keywords"
+      content="探途,离线地图,谷歌地图,google,map,安卓,android,iphone,ios,ipad,手机离线地图,出境游地图,全球地图,探图,探图地图app"
+    />
+    <meta
+      name="description"
+      content="探途离线地图，是专为出国自由行、自驾游用户提供的免费离线地图导航。覆盖美国、香港、台湾、泰国、欧洲、澳新等全世界超过200+国家，全球最新的专业地图数据，永久免费升级，不插sim卡、无需流量也能实现离线导航、离线搜索附近景点、加油站、停车场、购物中心，是出国旅行、自由行查路线、做攻略的必备神器。"
+    />
+    <meta
+      name="viewport"
+      content="initial-scale=1,maximum-scale=1,user-scalable=no"
+    />
+
+    <link
+      href="https:////maps.tantu.com/resources-web/vendor/mapbox-gl.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+
+      .mapboxgl-popup {
+        max-width: 400px;
+        font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
+      }
+
+      .loading {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 9999;
+      }
+    </style>
+  </head>
+  
+
+  <body>
+    <div id="loading" class="loading">Loading...</div>
+    <script src="https:////maps.tantu.com/resources-web/vendor/mapbox-gl.js"></script>
+    <div id="map" class="mapboxgl-map">
+      <div
+        class="mapboxgl-canvas-container
+                mapboxgl-interactive"
+      >
+        <canvas
+          class="mapboxgl-canvas"
+          tabindex="0"
+          aria-label="Map"
+          width="2786"
+          height="460"
+          style="position: absolute; width: 1393px; height: 230px;"
+        ></canvas>
+      </div>
+      <div class="mapboxgl-control-container">
+        <div class="mapboxgl-ctrl-top-left">
+          <div
+            class="mapboxgl-ctrl
+                        mapboxgl-ctrl-group"
+          >
+            <button
+              class="mapboxgl-ctrl-icon
+                            mapboxgl-ctrl-zoom-in"
+              type="button"
+              aria-label="Zoom In"
+            ></button
+            ><button
+              class="mapboxgl-ctrl-icon mapboxgl-ctrl-zoom-out"
+              type="button"
+              aria-label="Zoom Out"
+            ></button
+            ><button
+              class="mapboxgl-ctrl-icon mapboxgl-ctrl-compass"
+              type="button"
+              aria-label="Reset North"
+            >
+              <span
+                class="mapboxgl-ctrl-compass-arrow"
+                style="transform: rotate(0deg);"
+              ></span>
+            </button>
+          </div>
+        </div>
+        <div class="mapboxgl-ctrl-top-right"></div>
+        <div class="mapboxgl-ctrl-bottom-left">
+          <div class="mapboxgl-ctrl"></div>
+        </div>
+        <div class="mapboxgl-ctrl-bottom-right">
+          <div
+            class="mapboxgl-ctrl
+                        mapboxgl-ctrl-attrib"
+          ></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      if (!mapboxgl.supported()) {
+        alert("您的浏览器有点旧哦，请使用IE11以上或Chrome浏览器才能更好的体验");
+      } else {
+        var options = {
+          container: "map", // container id
+          style: "https://maps.tantu.com/resources-web/3-0-0/style.json", //服务器配置
+          center: [25, 30],
+          zoom: 1.5,
+          maxZoom: 16.99,
+          minZoom: 1.5,
+          hash: true,
+          scrollZoom: true,
+          // transformRequest: function(url, resourceType) {
+          //   return {
+          //     url: url.replace("https:", window.location.protocol),
+          //     headers: { "my-custom-header": true }
+          //   };
+          // }
+        };
+
+        //判断如果是中文系统，设置用系统字体代替sdf字体减少90%网络流量
+        var lang = window.navigator.userLanguage || window.navigator.language;
+        if (/zh/.test(lang)) {
+          options.localIdeographFontFamily =
+            '"Noto Sans", "Noto Sans CJK SC", "Open Sans Regular", sans-serif';
+        }
+
+        var map = new mapboxgl.Map(options);
+
+        //zoom tool
+        var nav = new mapboxgl.NavigationControl();
+        map.addControl(nav, "top-left");
+
+        map.on("click", function(e) {
+          console.log(e.lngLat);
+
+          // set bbox as 5px reactangle area around clicked point
+          var bbox = [
+            [e.point.x - 20, e.point.y - 20],
+            [e.point.x + 20, e.point.y + 20]
+          ];
+          var features = map.queryRenderedFeatures(bbox);
+
+          for (var i in features) {
+            the_feature = features[i];
+            console.log(the_feature);
+
+            var want_layer = [
+              "poi_label",
+              "building_label",
+              "landuse_label",
+              "place_label",
+              "landcover_label"
+            ];
+
+            if (want_layer.indexOf(the_feature.sourceLayer) >= 0) {
+              map.getCanvas().style.cursor = "pointer";
+
+              var coordinates = the_feature.geometry.coordinates.slice();
+              // Ensure that if the map is zoomed out such that multiple
+              // copies of the feature are visible, the popup appears
+              // over the copy being pointed to.
+              while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+              }
+
+              // Create a popup, but don't add it to the map yet.
+              var popup = new mapboxgl.Popup({
+                closeButton: false,
+                closeOnClick: true
+              });
+
+              popup
+                .setLngLat(coordinates)
+                .setHTML(
+                  "<i>所在图层: </i>" +
+                    the_feature.sourceLayer +
+                    "<BR>" +
+                    JSON.stringify(the_feature.properties)
+                )
+                .addTo(map);
+
+              break;
+            }
+          }
+        });
+
+        map.on("load", function() {
+          document.getElementById("loading").style.display = "none";
+        });
+      }
+    </script>
+  </body>
+</html>
